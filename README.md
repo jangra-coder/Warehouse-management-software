@@ -29,7 +29,7 @@ Demo login: `admin` / `admin123`
 
 | Part | Tech |
 |------|------|
-| Database | SQLite |
+| Database | MySQL (hosted on TiDB Cloud, MySQL compatible) |
 | Backend | Python, FastAPI |
 | Frontend | React (Vite), Chart.js |
 
@@ -71,8 +71,8 @@ Other DBMS concepts used:
 
 ```
 backend/
-  main.py            FastAPI app, creates the database on first run
-  database.py        SQLite connection
+  main.py            FastAPI app, creates the tables on first run
+  database.py        MySQL connection (details come from .env)
   auth.py            password hashing, login check, roles
   stock.py           add / remove stock + stock history
   schema.sql         all tables, view and indexes
@@ -86,16 +86,20 @@ frontend/
 
 ## How to run
 
+You need a MySQL database. It can be MySQL on your own laptop or a free cloud database
+like TiDB Cloud.
+
 Backend (Python 3.10 or newer):
 
 ```
 cd backend
 pip install -r requirements.txt
+cp .env.example .env      (then put your MySQL details in .env)
 uvicorn main:app --reload
 ```
 
-The first run creates `warehouse.db` with the admin login and sample data.
-Delete `warehouse.db` to start again with fresh data.
+The first run creates the `warehouse` database, all the tables, the admin login and the sample data.
+After that the data stays in MySQL.
 
 Frontend (Node 18 or newer), in another terminal:
 
@@ -117,5 +121,5 @@ Web Service settings:
 - Runtime: Python
 - Build command: `pip install -r backend/requirements.txt && cd frontend && npm install --include=dev && npm run build`
 - Start command: `cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT`
-
-Note: on the free plan the disk is not permanent, so the database goes back to the sample data when the service restarts.
+- Environment variables: `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSL=true`
+  (from the TiDB Cloud "Connect" page)
