@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/reports", tags=["reports"])
 # employee and vendor movements joined into one list
 MOVES = """
 WITH moves AS (
-    SELECT 'Employee' AS source, t.tx_id AS id, t.tx_type, date(t.created_at) AS day, t.created_at,
+    SELECT 'Employee' AS source, t.tx_id AS id, t.tx_type, DATE(t.created_at) AS day, t.created_at,
            e.name AS party, e.department, p.name AS product, p.sku, p.category,
            t.quantity, t.stock_type, t.quantity * p.price AS value,
            t.employee_id, NULL AS vendor_id
@@ -21,7 +21,7 @@ WITH moves AS (
     JOIN employees e ON e.employee_id = t.employee_id
     JOIN products p ON p.product_id = t.product_id
     UNION ALL
-    SELECT 'Vendor', v.vtx_id, v.tx_type, date(v.created_at), v.created_at,
+    SELECT 'Vendor', v.vtx_id, v.tx_type, DATE(v.created_at), v.created_at,
            d.name, 'Vendor', p.name, p.sku, p.category,
            v.quantity, v.stock_type, v.quantity * p.price,
            NULL, v.vendor_id
@@ -45,25 +45,25 @@ def build_where(from_date, to_date, source, tx_type, category, employee_id, vend
     where = ["1 = 1"]
     params = []
     if from_date:
-        where.append("day >= ?")
+        where.append("day >= %s")
         params.append(from_date)
     if to_date:
-        where.append("day <= ?")
+        where.append("day <= %s")
         params.append(to_date)
     if source:
-        where.append("source = ?")
+        where.append("source = %s")
         params.append(source)
     if tx_type:
-        where.append("tx_type = ?")
+        where.append("tx_type = %s")
         params.append(tx_type)
     if category:
-        where.append("category = ?")
+        where.append("category = %s")
         params.append(category)
     if employee_id:
-        where.append("employee_id = ?")
+        where.append("employee_id = %s")
         params.append(employee_id)
     if vendor_id:
-        where.append("vendor_id = ?")
+        where.append("vendor_id = %s")
         params.append(vendor_id)
     return " AND ".join(where), params
 

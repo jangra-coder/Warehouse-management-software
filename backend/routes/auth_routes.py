@@ -20,7 +20,7 @@ class PasswordForm(BaseModel):
 @router.post("/login")
 def login(form: LoginForm, conn=Depends(get_db)):
     user = conn.execute(
-        "SELECT * FROM users WHERE username = ?", (form.username.strip(),)
+        "SELECT * FROM users WHERE username = %s", (form.username.strip(),)
     ).fetchone()
     if user is None or not check_password(form.password, user["password_hash"]):
         raise HTTPException(401, "Wrong username or password")
@@ -48,20 +48,20 @@ def me(user=Depends(get_current_user)):
 @router.post("/logout")
 def logout(authorization: str = Header(default=""), conn=Depends(get_db)):
     token = authorization.replace("Bearer ", "").strip()
-    conn.execute("DELETE FROM sessions WHERE token = ?", (token,))
+    conn.execute("DELETE FROM sessions WHERE token = %s", (token,))
     conn.commit()
     return {"message": "Logged out"}
 
 
 @router.post("/change-password")
 def change_password(form: PasswordForm, user=Depends(get_current_user), conn=Depends(get_db)):
-    row = conn.execute("SELECT password_hash FROM users WHERE user_id = ?", (user["user_id"],)).fetchone()
+    row = conn.execute("SELECT password_hash FROM users WHERE user_id = %s", (user["user_id"],)).fetchone()
     if not check_password(form.old_password, row["password_hash"]):
         raise HTTPException(400, "Old password is wrong")
     if len(form.new_password) < 6:
         raise HTTPException(400, "New password must be at least 6 characters")
     conn.execute(
-        "UPDATE users SET password_hash = ? WHERE user_id = ?",
+        "UPDATE users SET password_hash = %s WHERE user_id = %s",
         (hash_password(form.new_password), user["user_id"]),
     )
     conn.commit()

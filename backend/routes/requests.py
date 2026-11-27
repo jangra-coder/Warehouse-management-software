@@ -37,7 +37,7 @@ def list_requests(status: str = "", user=Depends(get_current_user), conn=Depends
              WHERE 1 = 1"""
     params = []
     if status:
-        sql += " AND r.status = ?"
+        sql += " AND r.status = %s"
         params.append(status)
     sql += " ORDER BY r.request_id DESC"
     return rows_to_list(conn.execute(sql, params).fetchall())
@@ -51,7 +51,7 @@ def make_request(form: RequestForm, user=Depends(get_current_user), conn=Depends
         raise HTTPException(400, "Stock type must be new or used")
     cur = conn.execute(
         """INSERT INTO product_requests (employee_id, product_id, quantity, stock_type, note, requested_by)
-           VALUES (?, ?, ?, ?, ?, ?)""",
+           VALUES (%s, %s, %s, %s, %s, %s)""",
         (form.employee_id, form.product_id, form.quantity, form.stock_type, form.note, user["user_id"]),
     )
     conn.commit()
@@ -59,7 +59,7 @@ def make_request(form: RequestForm, user=Depends(get_current_user), conn=Depends
 
 
 def get_pending(conn, request_id):
-    r = conn.execute("SELECT * FROM product_requests WHERE request_id = ?", (request_id,)).fetchone()
+    r = conn.execute("SELECT * FROM product_requests WHERE request_id = %s", (request_id,)).fetchone()
     if r is None:
         raise HTTPException(404, "Request not found")
     if r["status"] != "pending":
@@ -74,9 +74,9 @@ def approve(request_id: int, user=Depends(staff_only), conn=Depends(get_db)):
     tx_id = issue_item(conn, r["employee_id"], r["product_id"], r["quantity"], r["stock_type"],
                        f"Request #{request_id}", user["user_id"])
     cur = conn.execute(
-        """UPDATE product_requests SET status = 'approved', decided_by = ?,
-               decided_at = datetime('now', 'localtime'), issued_tx_id = ?
-           WHERE request_id = ? AND status = 'pending'""",
+        """UPDATE product_requests SET status = 'approved', decided_by = %s,
+               decided_at = NOW(), issued_tx_id = %s
+           WHERE request_id = %s AND status = 'pending'""",
         (user["user_id"], tx_id, request_id),
     )
     if cur.rowcount == 0:
@@ -92,9 +92,9 @@ def decline(request_id: int, form: DeclineForm, user=Depends(staff_only), conn=D
     if form.note:
         note = (note + " | " if note else "") + "Declined: " + form.note
     conn.execute(
-        """UPDATE product_requests SET status = 'declined', decided_by = ?,
-               decided_at = datetime('now', 'localtime'), note = ?
-           WHERE request_id = ? AND status = 'pending'""",
+        """UPDATE product_requests SET status = 'declined', decided_by = %s,
+               decided_at = NOW(), note = %s
+           WHERE request_id = %s AND status = 'pending'""",
         (user["user_id"], note, request_id),
     )
     conn.commit()

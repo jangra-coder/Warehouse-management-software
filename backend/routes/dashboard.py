@@ -39,7 +39,7 @@ def dashboard(user=Depends(get_current_user), conn=Depends(get_db)):
                SELECT v.created_at, v.tx_type, d.name, p.name, v.quantity
                FROM vendor_transactions v JOIN vendors d ON d.vendor_id = v.vendor_id
                JOIN products p ON p.product_id = v.product_id
-           ) ORDER BY created_at DESC LIMIT 10"""
+           ) AS recent ORDER BY created_at DESC LIMIT 10"""
     ).fetchall()
 
     return {

@@ -3,7 +3,7 @@ from fastapi import HTTPException
 
 def get_product(conn, product_id):
     p = conn.execute(
-        "SELECT * FROM products WHERE product_id = ? AND is_deleted = 0", (product_id,)
+        "SELECT * FROM products WHERE product_id = %s AND is_deleted = 0", (product_id,)
     ).fetchone()
     if p is None:
         raise HTTPException(404, "Product not found")
@@ -23,7 +23,7 @@ def change_stock(conn, product_id, stock_type, change, action, notes, user_id):
     # the WHERE part makes sure stock never goes below zero,
     # even if two people press the button at the same time
     cur = conn.execute(
-        f"UPDATE products SET {column} = {column} + ? WHERE product_id = ? AND {column} + ? >= 0",
+        f"UPDATE products SET {column} = {column} + %s WHERE product_id = %s AND {column} + %s >= 0",
         (change, product_id, change),
     )
     if cur.rowcount == 0:
@@ -35,7 +35,7 @@ def change_stock(conn, product_id, stock_type, change, action, notes, user_id):
     conn.execute(
         """INSERT INTO stock_history (product_id, action, stock_type, quantity,
                new_before, new_after, used_before, used_after, notes, done_by)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
         (product_id, action, stock_type, abs(change),
          before["new_stock"], after["new_stock"], before["used_stock"], after["used_stock"],
          notes, user_id),

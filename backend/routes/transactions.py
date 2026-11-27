@@ -35,7 +35,7 @@ class TransferForm(BaseModel):
 
 
 def get_active_employee(conn, employee_id):
-    emp = conn.execute("SELECT * FROM employees WHERE employee_id = ?", (employee_id,)).fetchone()
+    emp = conn.execute("SELECT * FROM employees WHERE employee_id = %s", (employee_id,)).fetchone()
     if emp is None:
         raise HTTPException(404, "Employee not found")
     if not emp["is_active"]:
@@ -58,7 +58,7 @@ def issue_item(conn, employee_id, product_id, quantity, stock_type, notes, user_
     cur = conn.execute(
         """INSERT INTO transactions (tx_type, employee_id, product_id, quantity, stock_type,
                item_condition, remaining, notes, done_by)
-           VALUES ('ISSUE', ?, ?, ?, ?, ?, ?, ?, ?)""",
+           VALUES ('ISSUE', %s, %s, %s, %s, %s, %s, %s, %s)""",
         (employee_id, product_id, quantity, stock_type, condition, remaining, notes, user_id),
     )
     return cur.lastrowid
@@ -66,7 +66,7 @@ def issue_item(conn, employee_id, product_id, quantity, stock_type, notes, user_
 
 def get_open_row(conn, tx_id):
     row = conn.execute(
-        "SELECT * FROM transactions WHERE tx_id = ? AND tx_type IN ('ISSUE', 'TRANSFER')", (tx_id,)
+        "SELECT * FROM transactions WHERE tx_id = %s AND tx_type IN ('ISSUE', 'TRANSFER')", (tx_id,)
     ).fetchone()
     if row is None:
         raise HTTPException(404, "Transaction not found")
@@ -74,9 +74,9 @@ def get_open_row(conn, tx_id):
 
 
 def take_out(conn, tx_id, quantity):
-    # "remaining >= ?" stops two people from returning the same item twice
+    # "remaining >= %s" stops two people from returning the same item twice
     cur = conn.execute(
-        "UPDATE transactions SET remaining = remaining - ? WHERE tx_id = ? AND remaining >= ?",
+        "UPDATE transactions SET remaining = remaining - %s WHERE tx_id = %s AND remaining >= %s",
         (quantity, tx_id, quantity),
     )
     if cur.rowcount == 0:
@@ -95,15 +95,15 @@ def history(employee_id: Optional[int] = None, tx_type: str = "", search: str = 
              WHERE 1 = 1"""
     params = []
     if employee_id:
-        sql += " AND t.employee_id = ?"
+        sql += " AND t.employee_id = %s"
         params.append(employee_id)
     if tx_type:
-        sql += " AND t.tx_type = ?"
+        sql += " AND t.tx_type = %s"
         params.append(tx_type)
     if search:
-        sql += " AND (e.name LIKE ? OR p.name LIKE ? OR p.sku LIKE ?)"
+        sql += " AND (e.name LIKE %s OR p.name LIKE %s OR p.sku LIKE %s)"
         params += [f"%{search}%"] * 3
-    sql += " ORDER BY t.tx_id DESC LIMIT ?"
+    sql += " ORDER BY t.tx_id DESC LIMIT %s"
     params.append(limit)
     return rows_to_list(conn.execute(sql, params).fetchall())
 
@@ -118,7 +118,7 @@ def open_items(search: str = "", user=Depends(get_current_user), conn=Depends(ge
              WHERE t.remaining > 0"""
     params = []
     if search:
-        sql += " AND (e.name LIKE ? OR e.emp_code LIKE ? OR p.name LIKE ? OR p.sku LIKE ?)"
+        sql += " AND (e.name LIKE %s OR e.emp_code LIKE %s OR p.name LIKE %s OR p.sku LIKE %s)"
         params += [f"%{search}%"] * 4
     sql += " ORDER BY t.created_at"
     return rows_to_list(conn.execute(sql, params).fetchall())
@@ -150,7 +150,7 @@ def return_item(tx_id: int, form: ReturnForm, user=Depends(staff_only), conn=Dep
     conn.execute(
         """INSERT INTO transactions (tx_type, employee_id, product_id, quantity, stock_type,
                item_condition, ref_tx_id, notes, done_by)
-           VALUES ('RETURN', ?, ?, ?, ?, ?, ?, ?, ?)""",
+           VALUES ('RETURN', %s, %s, %s, %s, %s, %s, %s, %s)""",
         (row["employee_id"], row["product_id"], form.quantity, row["stock_type"],
          form.condition, tx_id, form.notes, user["user_id"]),
     )
@@ -177,7 +177,7 @@ def transfer_item(tx_id: int, form: TransferForm, user=Depends(staff_only), conn
     cur = conn.execute(
         """INSERT INTO transactions (tx_type, employee_id, product_id, quantity, stock_type,
                remaining, ref_tx_id, notes, done_by)
-           VALUES ('TRANSFER', ?, ?, ?, ?, ?, ?, ?, ?)""",
+           VALUES ('TRANSFER', %s, %s, %s, %s, %s, %s, %s, %s)""",
         (form.to_employee_id, row["product_id"], form.quantity, row["stock_type"],
          form.quantity, tx_id, form.notes, user["user_id"]),
     )

@@ -39,7 +39,7 @@ class VendorTransferForm(BaseModel):
 
 
 def get_active_vendor(conn, vendor_id):
-    v = conn.execute("SELECT * FROM vendors WHERE vendor_id = ?", (vendor_id,)).fetchone()
+    v = conn.execute("SELECT * FROM vendors WHERE vendor_id = %s", (vendor_id,)).fetchone()
     if v is None:
         raise HTTPException(404, "Vendor not found")
     if not v["is_active"]:
@@ -51,7 +51,7 @@ def work_price(conn, vendor_id, work_name):
     if not work_name:
         return 0
     w = conn.execute(
-        "SELECT price FROM vendor_works WHERE vendor_id = ? AND work_name = ?", (vendor_id, work_name)
+        "SELECT price FROM vendor_works WHERE vendor_id = %s AND work_name = %s", (vendor_id, work_name)
     ).fetchone()
     if w is None:
         raise HTTPException(400, f"This vendor does not do '{work_name}'")
@@ -60,7 +60,7 @@ def work_price(conn, vendor_id, work_name):
 
 def take_out(conn, vtx_id, quantity):
     cur = conn.execute(
-        "UPDATE vendor_transactions SET remaining = remaining - ? WHERE vtx_id = ? AND remaining >= ?",
+        "UPDATE vendor_transactions SET remaining = remaining - %s WHERE vtx_id = %s AND remaining >= %s",
         (quantity, vtx_id, quantity),
     )
     if cur.rowcount == 0:
@@ -69,7 +69,7 @@ def take_out(conn, vtx_id, quantity):
 
 def get_open_row(conn, vtx_id):
     row = conn.execute(
-        "SELECT * FROM vendor_transactions WHERE vtx_id = ? AND tx_type IN ('SEND', 'TRANSFER')", (vtx_id,)
+        "SELECT * FROM vendor_transactions WHERE vtx_id = %s AND tx_type IN ('SEND', 'TRANSFER')", (vtx_id,)
     ).fetchone()
     if row is None:
         raise HTTPException(404, "Vendor job not found")
@@ -88,15 +88,15 @@ def history(vendor_id: Optional[int] = None, tx_type: str = "", search: str = ""
              WHERE 1 = 1"""
     params = []
     if vendor_id:
-        sql += " AND t.vendor_id = ?"
+        sql += " AND t.vendor_id = %s"
         params.append(vendor_id)
     if tx_type:
-        sql += " AND t.tx_type = ?"
+        sql += " AND t.tx_type = %s"
         params.append(tx_type)
     if search:
-        sql += " AND (v.name LIKE ? OR p.name LIKE ? OR p.sku LIKE ?)"
+        sql += " AND (v.name LIKE %s OR p.name LIKE %s OR p.sku LIKE %s)"
         params += [f"%{search}%"] * 3
-    sql += " ORDER BY t.vtx_id DESC LIMIT ?"
+    sql += " ORDER BY t.vtx_id DESC LIMIT %s"
     params.append(limit)
     return rows_to_list(conn.execute(sql, params).fetchall())
 
@@ -105,14 +105,14 @@ def history(vendor_id: Optional[int] = None, tx_type: str = "", search: str = ""
 def open_jobs(search: str = "", user=Depends(get_current_user), conn=Depends(get_db)):
     """Items that are at vendors right now."""
     sql = """SELECT t.*, v.name AS vendor_name, v.vendor_code, p.name AS product_name, p.sku,
-                    CASE WHEN t.expected_return < date('now', 'localtime') THEN 1 ELSE 0 END AS is_late
+                    CASE WHEN t.expected_return < CURDATE() THEN 1 ELSE 0 END AS is_late
              FROM vendor_transactions t
              JOIN vendors v ON v.vendor_id = t.vendor_id
              JOIN products p ON p.product_id = t.product_id
              WHERE t.remaining > 0"""
     params = []
     if search:
-        sql += " AND (v.name LIKE ? OR p.name LIKE ? OR p.sku LIKE ?)"
+        sql += " AND (v.name LIKE %s OR p.name LIKE %s OR p.sku LIKE %s)"
         params += [f"%{search}%"] * 3
     sql += " ORDER BY t.created_at"
     return rows_to_list(conn.execute(sql, params).fetchall())
@@ -132,7 +132,7 @@ def send_to_vendor(form: SendForm, user=Depends(staff_only), conn=Depends(get_db
         cur = conn.execute(
             """INSERT INTO vendor_transactions (tx_type, vendor_id, product_id, quantity, stock_type,
                    work_name, work_price, expected_return, remaining, notes, done_by)
-               VALUES ('SEND', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES ('SEND', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
             (form.vendor_id, line.product_id, line.quantity, line.stock_type, line.work_name, price,
              line.expected_return or None, line.quantity, form.notes, user["user_id"]),
         )
@@ -153,7 +153,7 @@ def receive_from_vendor(vtx_id: int, form: ReceiveForm, user=Depends(staff_only)
     conn.execute(
         """INSERT INTO vendor_transactions (tx_type, vendor_id, product_id, quantity, stock_type,
                work_name, work_price, item_condition, amount_paid, ref_vtx_id, notes, done_by)
-           VALUES ('RECEIVE', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+           VALUES ('RECEIVE', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
         (row["vendor_id"], row["product_id"], form.quantity, row["stock_type"], row["work_name"],
          row["work_price"], form.condition, form.amount_paid, vtx_id, form.notes, user["user_id"]),
     )
@@ -179,7 +179,7 @@ def transfer_to_vendor(vtx_id: int, form: VendorTransferForm, user=Depends(staff
     cur = conn.execute(
         """INSERT INTO vendor_transactions (tx_type, vendor_id, product_id, quantity, stock_type,
                work_name, work_price, expected_return, remaining, ref_vtx_id, notes, done_by)
-           VALUES ('TRANSFER', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+           VALUES ('TRANSFER', %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
         (form.to_vendor_id, row["product_id"], form.quantity, row["stock_type"], form.work_name, price,
          row["expected_return"], form.quantity, vtx_id, form.notes, user["user_id"]),
     )

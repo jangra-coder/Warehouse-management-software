@@ -16,7 +16,7 @@ def check_password(password, password_hash):
 
 def new_session(conn, user_id):
     token = secrets.token_hex(32)
-    conn.execute("INSERT INTO sessions (token, user_id) VALUES (?, ?)", (token, user_id))
+    conn.execute("INSERT INTO sessions (token, user_id) VALUES (%s, %s)", (token, user_id))
     return token
 
 
@@ -28,7 +28,7 @@ def get_current_user(authorization: str = Header(default=""), conn=Depends(get_d
     user = conn.execute(
         """SELECT u.user_id, u.username, u.full_name, u.role
            FROM sessions s JOIN users u ON u.user_id = s.user_id
-           WHERE s.token = ? AND u.is_active = 1""",
+           WHERE s.token = %s AND u.is_active = 1""",
         (token,),
     ).fetchone()
     if user is None:

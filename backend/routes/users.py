@@ -44,10 +44,10 @@ def add_user(form: NewUserForm, user=Depends(admin_only), conn=Depends(get_db)):
         raise HTTPException(400, "Username must be at least 3 characters")
     if len(form.password) < 6:
         raise HTTPException(400, "Password must be at least 6 characters")
-    if conn.execute("SELECT 1 FROM users WHERE username = ?", (form.username.strip(),)).fetchone():
+    if conn.execute("SELECT 1 FROM users WHERE username = %s", (form.username.strip(),)).fetchone():
         raise HTTPException(400, "This username is taken")
     conn.execute(
-        "INSERT INTO users (username, password_hash, full_name, role) VALUES (?, ?, ?, ?)",
+        "INSERT INTO users (username, password_hash, full_name, role) VALUES (%s, %s, %s, %s)",
         (form.username.strip(), hash_password(form.password), form.full_name.strip(), form.role),
     )
     conn.commit()
@@ -60,11 +60,11 @@ def edit_user(user_id: int, form: EditUserForm, user=Depends(admin_only), conn=D
     if user_id == user["user_id"] and (form.role != "admin" or not form.is_active):
         raise HTTPException(400, "You cannot remove your own admin access")
     conn.execute(
-        "UPDATE users SET full_name = ?, role = ?, is_active = ? WHERE user_id = ?",
+        "UPDATE users SET full_name = %s, role = %s, is_active = %s WHERE user_id = %s",
         (form.full_name.strip(), form.role, int(form.is_active), user_id),
     )
     if not form.is_active:
-        conn.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))  # log them out
+        conn.execute("DELETE FROM sessions WHERE user_id = %s", (user_id,))  # log them out
     conn.commit()
     return {"message": "User updated"}
 
@@ -73,7 +73,7 @@ def edit_user(user_id: int, form: EditUserForm, user=Depends(admin_only), conn=D
 def reset_password(user_id: int, form: ResetForm, user=Depends(admin_only), conn=Depends(get_db)):
     if len(form.password) < 6:
         raise HTTPException(400, "Password must be at least 6 characters")
-    conn.execute("UPDATE users SET password_hash = ? WHERE user_id = ?", (hash_password(form.password), user_id))
-    conn.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+    conn.execute("UPDATE users SET password_hash = %s WHERE user_id = %s", (hash_password(form.password), user_id))
+    conn.execute("DELETE FROM sessions WHERE user_id = %s", (user_id,))
     conn.commit()
     return {"message": "Password reset"}
