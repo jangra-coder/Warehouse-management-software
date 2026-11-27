@@ -31,9 +31,9 @@ INSERT INTO vendors (vendor_code, name, phone, address) VALUES
 ('VEN002', 'Bharat Coating Works',  '9899000002', 'Udyog Vihar, Gurugram'),
 ('VEN003', 'City Heat Treatment',   '9899000003', 'Sector 37, Gurugram');
 
-INSERT INTO vendor_works (vendor_id, work_name, price) VALUES
-(1, 'Re-grinding', 150),
-(1, 'Re-sharpening', 80),
-(2, 'TiN Coating', 220),
-(2, 'Black Oxide', 60),
-(3, 'Hardening', 300);
+INSERT INTO vendor_works (vendor_id, work_name, price)
+SELECT vendor_id, 'Re-grinding', 150 FROM vendors WHERE vendor_code = 'VEN001'
+UNION ALL SELECT vendor_id, 'Re-sharpening', 80 FROM vendors WHERE vendor_code = 'VEN001'
+UNION ALL SELECT vendor_id, 'TiN Coating', 220 FROM vendors WHERE vendor_code = 'VEN002'
+UNION ALL SELECT vendor_id, 'Black Oxide', 60 FROM vendors WHERE vendor_code = 'VEN002'
+UNION ALL SELECT vendor_id, 'Hardening', 300 FROM vendors WHERE vendor_code = 'VEN003';
