@@ -6,7 +6,7 @@ A web based software to manage the items of a warehouse / tool store. It keeps t
 product, which items are given to employees, which items are sent to outside vendors for a job
 (grinding, coating etc.), requests from employees, scrap, and reports.
 
-**Live demo:** _link will be added after deployment_
+**Live demo:** https://warehouse-management-software-ztg4.onrender.com (free hosting, the first load can take about a minute)
 
 Demo login: `admin` / `admin123`
 
