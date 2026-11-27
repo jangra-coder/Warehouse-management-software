@@ -123,3 +123,7 @@ Web Service settings:
 - Start command: `cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT`
 - Environment variables: `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_SSL=true`
   (from the TiDB Cloud "Connect" page)
+
+Note for TiDB Cloud: CHECK constraints are off by default there. Run
+`SET GLOBAL tidb_enable_check_constraint = ON;` in the TiDB SQL Editor before the first start,
+so the CHECK rules in `schema.sql` are really enforced.
